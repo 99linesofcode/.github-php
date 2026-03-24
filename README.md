@@ -1,4 +1,4 @@
-# GitHub PHP
+# github-php
 
 Shared GitHub workflows and other Community Health Files for Laravel applications.
 
