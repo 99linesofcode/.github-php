@@ -1,4 +1,13 @@
-# 0.1.0 (2026-03-24)
+# [0.2.0](https://github.com/99linesofcode/.github-php/compare/v0.1.0...v0.2.0) (2026-03-24)
+
+
+### Features
+
+* **github:** shared dependabot.yaml should also manage pnpm packages ([c22e020](https://github.com/99linesofcode/.github-php/commit/c22e020d3daa1e5f8d77c51914650f8d425e229b))
+
+
+
+# [0.1.0](https://github.com/99linesofcode/.github-php/compare/70c6aa366296b3a7390926ad95c5745e8c4ba317...v0.1.0) (2026-03-24)
 
 
 ### Features
