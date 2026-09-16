@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   changelog:
     uses: 99linesofcode/.github/.github/workflows/changelog.yaml@main
