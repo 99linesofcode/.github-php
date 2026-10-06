@@ -1,3 +1,12 @@
+## [0.3.1](https://github.com/99linesofcode/.github-php/compare/v0.3.0...v0.3.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **ci:** resolve dependencies with composer update in the analyse gate ([85ab3c4](https://github.com/99linesofcode/.github-php/commit/85ab3c461372ad3a4a85bd8eca6200901a51d9b9))
+
+
+
 # [0.3.0](https://github.com/99linesofcode/.github-php/compare/v0.2.0...v0.3.0) (2026-10-06)
 
 
