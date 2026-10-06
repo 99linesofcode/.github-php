@@ -21,7 +21,7 @@ jobs:
           coverage: none
 
       - name: Install dependencies
-        run: composer install --no-interaction --no-progress --prefer-dist
+        run: composer update --no-interaction --no-progress --prefer-dist
 
       - name: Enforce layer boundaries
         run: vendor/bin/deptrac analyse --no-progress
