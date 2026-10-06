@@ -1,0 +1,83 @@
+name: Test PHP application
+
+on:
+  workflow_call:
+    inputs:
+      calling_repository_name:
+        required: true
+        type: string
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }} - ${{ matrix.stability }}
+
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql/mysql-server:8.0
+        env:
+          MYSQL_DATABASE: ${{ inputs.calling_repository_name }}
+          MYSQL_USER: default
+          MYSQL_PASSWORD: secret
+        ports:
+          - 3306:3306/tcp
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379/tcp
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      meilisearch:
+        image: getmeili/meilisearch:latest
+        ports:
+          - 7700:7700/tcp
+        options: --health-cmd="wget --no-verbose --spider http://localhost:7700/health" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      soketi:
+        image: quay.io/soketi/soketi:latest-16-alpine
+        env:
+          SOKETI_DEBUG: -1
+          SOKETI_DEFAULT_APP_ID: app-id
+          SOKETI_DEFAULT_APP_KEY: app-key
+          SOKETI_DEFAULT_APP_SECRET: app-secret
+        ports:
+          - 6001:6001/tcp
+          - 9601:9601/tcp
+        options: --health-cmd="wget --spider http://localhost:2375/version" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    strategy:
+      fail-fast: true
+      matrix:
+        php: [8.4]
+        stability: [prefer-stable]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: shivammathur/setup-php@v2 # docs: https://github.com/shivammathur/setup-php
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, gd, redis-phpredis/phpredis@5.3.7, igbinary, msgpack, lzf, zstd, lz4, memcached, gmp, :php-psr
+          ini-values: error_reporting=E_ALL
+          tools: composer:v2
+          coverage: pcov
+        env:
+          REDIS_CONFIGURE_OPTS: --enable-redis --enable-redis-igbinary --enable-redis-msgpack --enable-redis-lzf --with-liblzf --enable-redis-zstd --with-libzstd --enable-redis-lz4 --with-liblz4
+          REDIS_LIBS: liblz4-dev, liblzf-dev, libzstd-dev
+
+      - uses: nick-fields/retry@v4 # docs: https://github.com/nick-fields/retry
+        with:
+          timeout_minutes: 2
+          max_attempts: 5
+          command: composer update --${{ matrix.stability }} --no-interaction --no-progress
+
+      - run: |
+          cp .env.testing.github .env.testing
+          php artisan key:generate --env testing
+          php artisan migrate --env testing -v
+          php artisan tailwindcss:download # each os/cpu needs a dedicated version of the bin
+          php artisan tailwindcss:build --prod
+          vendor/bin/phpunit --coverage-text --display-deprecation

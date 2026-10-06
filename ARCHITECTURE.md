@@ -18,12 +18,14 @@ not consumed as a submodule (only the devshell is a submodule).
 ```
 .github-php/
 ├── workflows/                     # the templates a consumer copies
-│   ├── test.yaml                  # reusable test workflow (Pest)
-│   ├── deploy.yaml                # reusable Laravel deploy workflow (SSH)
+│   ├── test.yaml                  # thin wrapper → this repo's real test workflow
+│   ├── analyse.yaml               # thin wrapper → this repo's real analyse workflow
 │   ├── changelog.yaml             # reusable changelog workflow
 │   └── automatic-updates.yaml     # reusable Dependabot/agent workflow
+├── .github/workflows/             # the REAL PHP workflows, called with `uses:`
+│   ├── test.yaml                  # reusable test workflow (Pest)
+│   └── analyse.yaml               # reusable deptrac boundary gate
 ├── dependabot.yaml                # the Dependabot config a consumer copies
-├── .github/                       # this repo's own workflows + dependabot
 ├── devshell/                      # git submodule: devshell-php
 ├── .editorconfig, .prettierrc     # shared formatting
 └── README.md
@@ -35,25 +37,27 @@ their repos): a project is a Laravel app (PSR-4 `App\` → `app/`) built on
 module is a bounded context with hexagonal-flavored layering (`App/` /
 `Domain/` / `Infrastructure/`) and PSR-4 root `Lines\<Module>\` → `src/`.
 Actions carry the logic; DTOs cross the boundary; models stay lean. The
-workflows here test, deploy and release those projects.
+workflows here test and analyse those projects; release is the changelog
+workflow's job.
 
 ## 2. High-Level System Diagram
 
 ```
   .github-php (this repo)                 consumer Laravel project
   ┌──────────────────────────┐            ┌──────────────────────────────┐
-  │ workflows/test.yaml      │  copy →    │ .github/workflows/test.yaml  │
-  │ workflows/deploy.yaml    │            │ .github/workflows/deploy.yaml│
-  │ workflows/changelog.yaml │            │ .github/workflows/changelog… │
-  │ workflows/automatic-…    │            │ .github/workflows/automatic… │
-  │ dependabot.yaml          │            │ .github/dependabot.yaml      │
-  └────────────┬─────────────┘            └───────────────┬──────────────┘
-               │                                          │
-               ▼                                          ▼
+  │ .github/workflows/       │  uses: →   │ .github/workflows/test.yaml  │
+  │   test.yaml (real)       │            │ .github/workflows/analyse…   │
+  │   analyse.yaml (real)    │            │   (thin wrappers)            │
+  │ workflows/*.yaml         │  copy →    │ .github/workflows/changelog… │
+  │   (thin wrapper          │            │ .github/workflows/automatic… │
+  │   templates)             │            │ .github/dependabot.yaml      │
+  │ dependabot.yaml          │            └──────────────────────────────┘
+  └────────────┬─────────────┘
+               │  changelog + automatic-updates still delegate to:
+               ▼
   ┌──────────────────────────────────────────────────────────────────────┐
   │  99linesofcode/.github  (org reusable workflows)                      │
-  │  test.yaml · deploy.yaml · changelog.yaml · automatic-updates.yaml ·  │
-  │  update-agent.yaml                                                    │
+  │  changelog.yaml · automatic-updates.yaml · update-agent.yaml          │
   └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -61,12 +65,13 @@ workflows here test, deploy and release those projects.
 
 | Component | Responsibility |
 |---|---|
-| `workflows/test.yaml` | Reusable test workflow: runs the consumer's Pest suite, parameterised by `calling_repository_name` |
-| `workflows/deploy.yaml` | Reusable Laravel deploy workflow: deploys over SSH with the encrypted `.env` key and SSH private key |
+| `.github/workflows/test.yaml` | The real reusable test workflow: runs the consumer's Pest suite, parameterised by `calling_repository_name` |
+| `.github/workflows/analyse.yaml` | The real reusable boundary gate: deptrac enforces the layer contract on every PR |
+| `workflows/test.yaml` | Thin wrapper template a consumer copies; delegates to this repo's real test workflow |
+| `workflows/analyse.yaml` | Thin wrapper template a consumer copies; delegates to this repo's real analyse workflow |
 | `workflows/changelog.yaml` | Reusable changelog generation on push to `main` |
 | `workflows/automatic-updates.yaml` | Reusable Dependabot/agent update workflow on PRs |
 | `dependabot.yaml` | Dependabot config covering gitsubmodule, npm and Composer ecosystems |
-| `.github/workflows/*` | This repo's own use of the templates |
 | `devshell/` | Pinned PHP dev environment (`devshell-php`) |
 
 ### Ports & adapters
@@ -85,23 +90,23 @@ against the consumer's configured database (the skeleton defaults to SQLite
 
 ## 5. External Integrations / APIs
 
-- **GitHub Actions** — the reusable workflows in
-  `99linesofcode/.github/.github/workflows/` are invoked with `uses:`. Method:
-  reusable workflows.
-- **GitHub secrets** — `deploy.yaml` passes `LARAVEL_ENV_ENCRYPTION_KEY` and
-  `SSH_PRIVATE_KEY` to the org deploy workflow.
+- **GitHub Actions** — the real PHP workflows live in THIS repo at
+  `.github/workflows/` and are invoked with `uses:`; the changelog and
+  automatic-updates templates still delegate to
+  `99linesofcode/.github/.github/workflows/`. Method: reusable workflows.
 - **GitHub Dependabot** — `dependabot.yaml` drives dependency updates.
 - No runtime service is integrated.
 
 ## 6. Deployment & Infrastructure
 
-- **Consumption**: copy the `.yaml` file(s) you need into your project's
+- **Consumption**: copy the wrapper template(s) you need into your project's
   `.github/` folder. GitHub cannot traverse into submodules, so these are
-  copies, not a submodule.
-- **Test**: `workflows/test.yaml` runs on non-`main` pushes and PRs (branches
-  off `main`), delegating to the org test workflow.
-- **Deploy**: `workflows/deploy.yaml` runs on push to `main`, delegating to
-  the org deploy workflow with the Laravel env encryption key and SSH key.
+  copies, not a submodule. The wrappers delegate to this repo's real
+  workflows with `uses:`.
+- **Test**: `workflows/test.yaml` (wrapper) runs on non-`main` pushes and
+  PRs, delegating to this repo's real test workflow.
+- **Analyse**: `workflows/analyse.yaml` (wrapper) runs the deptrac boundary
+  gate on non-`main` pushes and PRs.
 - **Release**: `workflows/changelog.yaml` generates the changelog on push to
   `main`.
 - **Local environment**: the `devshell` submodule (`devshell-php`) via
@@ -111,9 +116,10 @@ against the consumer's configured database (the skeleton defaults to SQLite
 ## 7. Security Considerations
 
 - **Secrets are GitHub Actions secrets**, passed explicitly and never
-  inlined: the deploy workflow forwards `LARAVEL_ENV_ENCRYPTION_KEY` (the
-  key that decrypts the app's encrypted `.env`) and `SSH_PRIVATE_KEY`.
-- **Least privilege in the workflow permissions**: test/deploy declare
+  inlined. The Kamal deploy workflow (with its `LARAVEL_ENV_ENCRYPTION_KEY`
+  and `SSH_PRIVATE_KEY` forwarding) was dropped — deployment is superseded
+  by the Kubernetes fleet.
+- **Least privilege in the workflow permissions**: test/analyse declare
   `contents: read`; changelog declares `contents: write`; automatic-updates
   declares `pull-requests`, `contents` and `issues` write (it needs to push
   updates and comment).
@@ -132,10 +138,10 @@ against the consumer's configured database (the skeleton defaults to SQLite
 - **Mechanical gates and what each makes impossible**:
   - The **reusable test workflow** makes a red test suite un-mergeable in the
     consumer's PR pipeline.
-  - The **branch filter** (`branches-ignore: main` for test) makes a
-    post-merge test run unnecessary while keeping PRs gated.
-  - The **deploy workflow's secret requirements** make a deploy without the
-    env key or SSH key impossible.
+  - The **reusable analyse workflow** makes a layer-contract violation
+    un-mergeable in the consumer's PR pipeline.
+  - The **branch filter** (`branches-ignore: main` for test/analyse) makes a
+    post-merge run unnecessary while keeping PRs gated.
   - The **boundary gate** for consumers is **deptrac** (see §12).
 
 ## 9. Future Considerations / Roadmap
@@ -146,8 +152,10 @@ against the consumer's configured database (the skeleton defaults to SQLite
   workflows, so these files are copied; the README states this explicitly.
 - **PHP/Laravel only.** This is the PHP variant of the shared workflow set;
   other ecosystems get their own starter.
-- **No application code or deployment logic here.** The heavy lifting lives
-  in the org's reusable workflows; this repo is the thin, copyable layer.
+- **No application code or deployment logic here.** The test/analyse heavy
+  lifting lives in this repo's real workflows; changelog and automatic-updates
+  still delegate to the org's reusable workflows. Kamal deploy logic was
+  dropped — deployment is superseded by the Kubernetes fleet.
 - **No secrets in the repo.** Secrets are supplied by the consumer's
   repository settings.
 
