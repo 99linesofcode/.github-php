@@ -1,0 +1,27 @@
+name: Analyse PHP architecture
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  deptrac:
+    name: deptrac
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: shivammathur/setup-php@v2 # docs: https://github.com/shivammathur/setup-php
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Enforce layer boundaries
+        run: vendor/bin/deptrac analyse --no-progress
