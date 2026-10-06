@@ -72,10 +72,9 @@ workflows here test, deploy and release those projects.
 ### Ports & adapters
 
 Not applicable to this repo. For the Laravel projects it serves, the
-`laravel` skill defines the pattern: the `Domain` owns a port when a real
-external seam exists, `Infrastructure/` holds the adapter, and the
-`*ServiceProvider` is the composition root. This repo adds no ports of its
-own.
+pattern is fixed: the `Domain` owns a port when a real external seam exists,
+`Infrastructure/` holds the adapter, and the `*ServiceProvider` is the
+composition root. This repo adds no ports of its own.
 
 ## 4. Data Stores
 
@@ -181,9 +180,8 @@ Date of Last Update: 2026-10-06
 
 ## 12. Conventions & Boundaries
 
-The house standards for the PHP/Laravel projects this repo serves — the full
-contract lives in the `software-architecture` and `laravel` skills; this
-section records what is enforced and by which gate.
+The house standards for the PHP/Laravel projects this repo serves — stated
+here in full; this section records what is enforced and by which gate.
 
 - **Folder structure**: PSR-4. A host app autoloads `App\` → `app/`; a module
   uses `Lines\<Module>\` → `src/` with the hexagonal-flavored layering
