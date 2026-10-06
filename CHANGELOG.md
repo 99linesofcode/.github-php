@@ -1,3 +1,12 @@
+# [0.3.0](https://github.com/99linesofcode/.github-php/compare/v0.2.0...v0.3.0) (2026-10-06)
+
+
+### Features
+
+* **ci:** host the real PHP workflows here, drop the Kamal deploy ([8a8731b](https://github.com/99linesofcode/.github-php/commit/8a8731bf9095dd8b23352054f8f424cb0a340290))
+
+
+
 # [0.2.0](https://github.com/99linesofcode/.github-php/compare/v0.1.0...v0.2.0) (2026-03-24)
 
 
